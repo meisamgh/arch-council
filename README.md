@@ -39,6 +39,12 @@ turn can contain a position, claims, challenges, revisions, resolutions, evidenc
 reviews, and proposed experiments. Claims and objections receive stable IDs, so later agents
 can respond to specific reasoning.
 
+Discussion follows a sequential floor order: A speaks, then B sees A's updated state, then
+C (when enabled) sees both. This is a moderated discussion, not simultaneous voting.
+The final model returns a typed decision. Code checks its claim, challenge, evidence, and
+experiment IDs against the ledger and renders the Markdown report. Open objections and
+research gaps cannot silently become unqualified accepted claims.
+
 ## Installation
 
 Requires Python 3.11 or newer.
@@ -147,6 +153,11 @@ Research is bounded and selective. SearXNG or Tavily can provide search results;
 inspections pin a commit and read a small number of files; paper inspections use bounded
 excerpts; official documentation is preferred for API and library behavior; failed sources
 are recorded as unavailable or partial evidence; downloaded code is not executed.
+Evidence retains source type, inspection status, commit SHA when available, authority,
+directness, and retrieval time. Search cache keys include the provider and endpoint to
+keep results from different search services separate. A terminal research gap can be
+handled by an explicit, agreed action: conditional acceptance, a required experiment, or
+rejection. Pending research still blocks convergence.
 
 For a short interview or customer-discovery submission, research is usually unnecessary.
 It is more useful when a claim depends on a particular paper, repository, API behavior, or
@@ -217,6 +228,7 @@ The tests cover structured discussion, claim ownership, malformed-output repair,
 attempt budgets, resume behavior, README summary caching, research degradation, provider routing,
 and bounded prompts. Offline tests do not prove that a live provider account, model, network route,
 or external research service is available.
+GitHub Actions runs Ruff and pytest on Python 3.11 and 3.12 for pushes and pull requests.
 
 ## Scope
 

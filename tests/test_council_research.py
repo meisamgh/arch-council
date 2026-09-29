@@ -1,6 +1,6 @@
 import json
 
-from arch_council.council import Request
+from arch_council.council import Claim, Council, CouncilState, Request, ResearchRequest
 from arch_council.research import ResearchError, ResearchPack, ResearchSource
 from arch_council.research_tools import CouncilResearch, inspect_source
 from arch_council.runtime.persistence import SQLiteStore
@@ -26,6 +26,9 @@ def test_one_source_unavailable_retains_partial_evidence_and_cached_inspection(t
     assert result["status"] == "partial"
     assert len(result["sources"]) == 2
     assert result["sources"][1]["excerpt"] == "fallback"
+    assert result["sources"][1]["inspection_status"] == "snippet"
+    assert result["sources"][0]["source_type"] == "paper"
+    assert result["sources"][0]["retrieved_at"]
     replay = CouncilResearch(Search(), store=store, review_id="r", inspections=2)(request)
     assert len(calls) == 2
     assert replay["sources"] == result["sources"]
@@ -58,3 +61,28 @@ def test_arxiv_sections_are_labeled_excerpts(monkeypatch):
     assert "Temporal split" in text
     assert "Small dataset" in text
     assert "not full-paper review" in provenance
+
+
+def test_inspection_metadata_reaches_ledger_and_decision_prompt(tmp_path):
+    class Client:
+        before_attempt = None
+
+    store = SQLiteStore(tmp_path / "db")
+    source = {"url": "https://github.com/example/project", "title": "Code",
+              "excerpt": "test evidence", "provenance": "GitHub selected files at commit " + "a" * 40,
+              "source_type": "github", "inspection_status": "inspected",
+              "commit_sha": "a" * 40, "authority": "primary",
+              "directness": "implementation", "retrieved_at": "2026-09-29T12:00:00+00:00"}
+    council = Council(client=Client(), store=store, review_id="metadata", topic="Review",
+                      models={"A": "a", "B": "b"})
+    council.state = CouncilState(claims={"C001": Claim(
+        id="C001", owner="A", statement="Inspect repository implementation")},
+        requests={"Q001": ResearchRequest(id="Q001", owner="B", claim_id="C001",
+                                           query="Inspect implementation", purpose="Check the code")})
+    council.research = lambda _: {"status": "available", "sources": [source]}
+    council.service_research()
+    evidence = next(iter(council.state.evidence.values()))
+    assert evidence.commit_sha == "a" * 40
+    assert evidence.inspection_status == "inspected"
+    packet = json.loads(council.prompt("judge", final=True))
+    assert packet["evidence_index"][0]["directness"] == "implementation"

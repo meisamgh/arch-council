@@ -41,7 +41,22 @@ class FakeClient:
         if kwargs["stage"] == self.fail:
             raise RuntimeError("interrupted")
         if kwargs["stage"] == "decision":
-            return "Use a deterministic compiler. Validate leakage before launch."
+            packet = json.loads(kwargs["user"].split("\nCoordinator stop reason:", 1)[0])
+            claims = [c["id"] for c in packet["claim_index"]]
+            open_objections = [c["id"] for c in packet["open_challenges"]]
+            gaps = [r for r in packet["research_status"] if r["status"] != "available"]
+            unresolved = sorted({c["claim"] for c in packet["open_challenges"]}
+                                | {r["claim"] for r in gaps})
+            return json.dumps({
+                "recommendation": "Use a deterministic compiler. Validate leakage before launch.",
+                "accepted_claim_ids": [cid for cid in claims if cid not in unresolved],
+                "conditional_claim_ids": [], "rejected_claim_ids": [],
+                "unresolved_claim_ids": unresolved,
+                "open_challenge_ids": open_objections,
+                "required_experiment_ids": [], "evidence_ids": [],
+                "limitations": ["External evidence is incomplete"] if gaps else [],
+                "minority_reasoning": ["An objection remains open"] if unresolved else [],
+            })
         if kwargs["stage"] == "proposal-A":
             return json.dumps({"position": "Use a compiler", "claims": ["Compile features deterministically"]})
         if kwargs["stage"].endswith("-B") and kwargs["stage"].startswith("round"):

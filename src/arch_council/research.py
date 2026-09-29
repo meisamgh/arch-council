@@ -93,8 +93,14 @@ class CachedResearchClient:
         self.last_cache_hit = False
 
     def search_many(self, queries, *, max_results_per_query=3, max_sources=12, max_content_chars=1200):
+        provider = type(self.client).__name__
+        endpoint = getattr(self.client, "base_url", None)
+        if endpoint is None and isinstance(self.client, TavilyResearchClient):
+            endpoint = "https://api.tavily.com/search"
         key_material = json.dumps(
-            [tuple(sorted(q.strip() for q in queries if q.strip())), max_results_per_query, max_sources, max_content_chars],
+            ["research-cache-v2", provider, endpoint,
+             tuple(sorted(q.strip() for q in queries if q.strip())),
+             max_results_per_query, max_sources, max_content_chars],
             separators=(",", ":"),
         )
         key = hashlib.sha256(key_material.encode()).hexdigest()

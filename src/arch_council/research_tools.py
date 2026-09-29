@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -112,13 +113,16 @@ class CouncilResearch:
         sources, gaps = [], []
         for source in pack.sources:
             content, provenance = source.content, "search snippet; source not inspected"
+            inspected = False
             key = "inspection:" + hashlib.sha256((source.url + request.query).encode()).hexdigest()
             cached = self.store.checkpoint_payload(self.review_id, key) if self.store else None
             used = (self.store.checkpoint_payload(self.review_id, "inspection-count") or 0
                     if self.store else self.used)
             if cached is not None:
                 content, provenance = cached["text"], cached["provenance"]
-                if not cached.get("inspected", False):
+                inspected = cached.get("inspected", False)
+                retrieved_at = cached.get("retrieved_at")
+                if not inspected:
                     gaps.append(source.url)
             elif used < self.inspections:
                 self.used = used + 1
@@ -126,14 +130,37 @@ class CouncilResearch:
                     self.store.checkpoint(self.review_id, "inspection-count", self.used)
                 try:
                     content, provenance = inspect_source(source.url, request.query)
+                    inspected = True
                 except (ResearchError, requests.RequestException, ValueError, KeyError):
                     gaps.append(source.url)
+                retrieved_at = datetime.now(UTC).isoformat()
                 if self.store:
                     self.store.checkpoint(self.review_id, key, {"text": content, "provenance": provenance,
-                                                               "inspected": source.url not in gaps})
+                                                               "inspected": inspected,
+                                                               "retrieved_at": retrieved_at})
             else:
                 gaps.append(source.url)
+                retrieved_at = datetime.now(UTC).isoformat()
+            host = urlparse(source.url).hostname or ""
+            source_type = ("github" if host == "github.com" else
+                           "paper" if host in {"arxiv.org", "www.arxiv.org"} else
+                           "docs" if host in {"docs.python.org", "pydantic.dev",
+                                              "docs.pydantic.dev", "docs.github.com"} else "web")
+            if inspected and source_type == "github":
+                directness = ("implementation" if re.search(
+                    r"(?m)^[\w./-]+\.(?:py|ts|rs|toml):L\d+", content
+                ) else "documentation")
+            else:
+                directness = ({"paper": "methodology", "docs": "documentation"}
+                              .get(source_type, "snippet") if inspected else "snippet")
+            commit_match = re.search(r"commit ([a-f0-9]{40})", provenance) if inspected else None
             sources.append({"url": source.url, "title": source.title,
-                            "excerpt": content[:3600], "provenance": provenance})
+                            "excerpt": content[:3600], "provenance": provenance,
+                            "source_type": source_type,
+                            "inspection_status": "inspected" if inspected else "snippet",
+                            "commit_sha": commit_match[1] if commit_match else None,
+                            "authority": "primary" if inspected and source_type != "web" else "unknown",
+                            "directness": directness,
+                            "retrieved_at": retrieved_at or datetime.now(UTC).isoformat()})
         return {"status": "partial" if gaps else "available" if sources else "unavailable",
                 "sources": sources, "detail": f"{len(gaps)} sources not deeply inspected"}

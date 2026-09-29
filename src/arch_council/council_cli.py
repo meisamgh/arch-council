@@ -125,7 +125,7 @@ def _run_council_locked(args):
     print(f"Attempt budget: {limits['max_calls']} (includes retries/repairs); "
           f"prompt cap: {args.max_prompt_chars} chars; output cap: {args.max_output_tokens} tokens")
     print("Research: on demand" if research else "Research: disabled")
-    print("Summaries: deterministic; final synthesis: one call")
+    print("Debate state: deterministic; README summaries: validated, bounded, cached when enabled")
     print(f"Decision model: {args.arbiter_model or models['B']}; "
           f"README summary: {args.readme_summary if args.readme_only else 'not applicable'}")
     result = council.run()

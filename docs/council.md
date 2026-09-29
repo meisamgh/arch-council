@@ -4,6 +4,11 @@
 and one final decision call. `--agents 3` adds a specialist. The earlier three-proposal weighted
 arbitration pipeline remains available with `--mode legacy`.
 
+Council mode uses sequential floor order. B sees A's latest state and C sees A and B's latest
+state in each round. The final decision is returned as a `CouncilDecision` JSON object, checked
+against claim, objection, experiment, and evidence IDs, then rendered by Python. The model's
+recommendation text remains model-authored; the ledger classification and sections are verified.
+
 ```text
 Independent positions → claim-specific critique → optional research → requester responds
                      → revisions/concessions → stop evaluation → final decision
@@ -16,8 +21,11 @@ The complete ledger survives between turns. Each prompt contains a compact index
 for two active claims; raw outputs are stored separately in SQLite.
 
 Stop reasons are `converged`, `max_rounds`, or `budget_exhausted`. Convergence requires all
-other participating agents to support each claim, no open high-severity challenges, no incomplete
-research request, and no material change in that round. A round limit is not evidence of agreement.
+other participating agents to agree on each claim's disposition, no open high-severity challenges,
+no pending research request, and no material change in that round. A terminal research gap
+(`partial`, `unavailable`, `disabled`, or `budget`) can be handled by explicit agreement to
+accept with uncertainty, require an experiment, or reject the claim. A round limit is not evidence
+of agreement.
 Experiments are proposed plans, not executed or validated results. The final report includes the
 complete ledger, dissent history, experiments, source URLs, coverage gaps, and budget counters.
 
@@ -104,6 +112,11 @@ Reports are written to `reports/` (or `--output-dir`) and persisted in SQLite. A
 not stored in the launch manifest. Offline integration tests cover challenge persistence, ownership,
 research/critique/resume, partial evidence, bounded prompts, transport retries, repair accounting,
 and topic-only CLI execution. Real provider/network availability is not exercised by those tests.
+
+The search cache includes provider identity and endpoint in its key. Evidence records source type,
+inspection status, commit SHA where available, authority, directness, and retrieval time. A search
+snippet is labeled separately from an inspected implementation file, paper excerpt, or official
+documentation. These metadata fields do not by themselves establish that a source is correct.
 
 ## README summaries
 

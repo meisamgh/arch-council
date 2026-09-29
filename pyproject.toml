@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "arch-council"
 version = "0.8.0"
-description = "Evidence-grounded architecture council with bounded research, dynamic debate, and weighted arbitration"
+description = "Evidence-grounded architecture council with structured claims, bounded research, resumable deliberation, and auditable decisions"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
