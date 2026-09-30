@@ -1,4 +1,7 @@
 # ArchCouncil
+<p align="center">
+  <img src="docs/Agents.png" alt="Agent_Debate workflow with Sol, Terra, and Luna debating architecture" width="100%">
+</p>
 
 ArchCouncil is a production-oriented Python CLI for bounded, evidence-grounded
 architecture and design reviews. Multiple LLM roles discuss a question through a
@@ -9,6 +12,8 @@ It supports reviews such as feature-engineering designs, data and ML architectur
 customer-discovery proposals, and implementation choices before a prototype is built.
 It is a decision-support tool: model-generated recommendations are not production
 validation, and downloaded research code is never executed.
+
+
 
 ## Workflow
 
